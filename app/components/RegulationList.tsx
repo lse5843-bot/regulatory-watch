@@ -147,7 +147,7 @@ export default function RegulationList({
     useState<(typeof AREA_FILTERS)[number]>("전체");
 
   const [agencyFilter, setAgencyFilter] = useState("전체");
-
+const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegulation, setSelectedRegulation] =
     useState<Regulation | null>(null);
 
@@ -180,10 +180,33 @@ export default function RegulationList({
       const matchesAgency =
         agencyFilter === "전체" ||
         regulation.agency === agencyFilter;
-
-      return matchesCategory && matchesArea && matchesAgency;
+const matchesSearch =
+  searchQuery.trim() === "" ||
+  [
+    regulation.title,
+    regulation.ai_summary,
+    regulation.agency,
+    regulation.department,
+    regulation.subcategory,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(searchQuery.toLowerCase());
+    return (
+  matchesCategory &&
+  matchesArea &&
+  matchesAgency &&
+  matchesSearch
+);  
     });
-  }, [regulations, categoryFilter, areaFilter, agencyFilter]);
+  }, [
+  regulations,
+  categoryFilter,
+  areaFilter,
+  agencyFilter,
+  searchQuery,
+]);
 const deviceRegulations = useMemo(
   () =>
     filteredRegulations.filter(
@@ -231,6 +254,15 @@ const drugRegulations = useMemo(
         {/* 필터 */}
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="space-y-5">
+            <div>
+  <input
+    type="text"
+    placeholder="제목, AI 요약, 기관 검색..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm focus:border-violet-500 focus:outline-none"
+  />
+</div>
             <FilterGroup
               title="분야"
               options={CATEGORY_FILTERS}
@@ -303,10 +335,11 @@ const drugRegulations = useMemo(
       <div className="space-y-4">
         {deviceRegulations.map((regulation) => (
           <RegulationCard
-            key={regulation.id}
-            regulation={regulation}
-            onOpen={() => setSelectedRegulation(regulation)}
-          />
+  key={regulation.id}
+  regulation={regulation}
+  searchQuery={searchQuery}
+  onOpen={() => setSelectedRegulation(regulation)}
+/>
         ))}
       </div>
     </section>
@@ -323,10 +356,11 @@ const drugRegulations = useMemo(
       <div className="space-y-4">
         {drugRegulations.map((regulation) => (
           <RegulationCard
-            key={regulation.id}
-            regulation={regulation}
-            onOpen={() => setSelectedRegulation(regulation)}
-          />
+  key={regulation.id}
+  regulation={regulation}
+  searchQuery={searchQuery}
+  onOpen={() => setSelectedRegulation(regulation)}
+/>
         ))}
       </div>
     </section>
@@ -344,7 +378,40 @@ const drugRegulations = useMemo(
     </>
   );
 }
+function HighlightText({
+  text,
+  query,
+}: {
+  text?: string | null;
+  query: string;
+}) {
+  if (!text) return null;
 
+  if (!query.trim()) {
+    return <>{text}</>;
+  }
+
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(${escaped})`, "gi");
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) =>
+        regex.test(part) ? (
+          <mark
+            key={index}
+            className="rounded bg-yellow-200 px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={index}>{part}</span>
+        )
+      )}
+    </>
+  );
+}
 type FilterGroupProps<T extends string> = {
   title: string;
   options: readonly T[];
@@ -391,9 +458,11 @@ function FilterGroup<T extends string>({
 
 function RegulationCard({
   regulation,
+  searchQuery,
   onOpen,
 }: {
   regulation: Regulation;
+  searchQuery: string;
   onOpen: () => void;
 }) {
   return (
@@ -433,7 +502,10 @@ function RegulationCard({
       </div>
 
       <h2 className="mt-4 text-lg font-bold leading-7 text-slate-900 transition group-hover:text-violet-700 sm:text-xl">
-        {regulation.title}
+        <HighlightText
+  text={regulation.title}
+  query={searchQuery}
+/>
       </h2>
 
       {(regulation.affected_area?.length ?? 0) > 0 && (
@@ -459,7 +531,10 @@ function RegulationCard({
     </p>
 
     <p className="line-clamp-3 leading-7 text-slate-600">
-      {regulation.ai_summary}
+      <HighlightText
+  text={regulation.ai_summary}
+  query={searchQuery}
+/>
     </p>
   </div>
 )}
