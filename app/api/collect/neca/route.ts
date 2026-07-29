@@ -32,12 +32,14 @@ type BasicNotice = {
   publishedAt: string | null;
   sourceUrl: string;
   subcategory: NecaSubcategory;
+  status: string | null;
 };
 
 type NecaNotice = BasicNotice & {
   category: Category;
   department: string;
   detailText: string;
+  status: string | null;
   affectedArea: AffectedArea[];
 };
 
@@ -342,16 +344,18 @@ function parseListPage(
   const results: BasicNotice[] = [];
 
   const addNotice = ({
-    title,
-    dateText,
-    href,
-    onclick,
-  }: {
-    title: string;
-    dateText: string;
-    href: string;
-    onclick: string;
-  }) => {
+  title,
+  dateText,
+  href,
+  onclick,
+  status,
+}: {
+  title: string;
+  dateText: string;
+  href: string;
+  onclick: string;
+  status: string;
+}) => {
     const normalizedTitle = normalize(title);
 
     if (!isPossibleNoticeTitle(normalizedTitle)) {
@@ -371,11 +375,12 @@ function parseListPage(
       );
 
     results.push({
-      title: normalizedTitle,
-      publishedAt: normalizeDate(dateText),
-      sourceUrl,
-      subcategory: page.subcategory,
-    });
+  title: normalizedTitle,
+  publishedAt: normalizeDate(dateText),
+  sourceUrl,
+  subcategory: page.subcategory,
+  status: normalize(status) || null,
+});
   };
 
   $(
@@ -428,18 +433,30 @@ function parseListPage(
     }
 
     const dateMatch = rowText.match(
-      /20\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}/
-    );
+  /20\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}/
+);
 
-    addNotice({
-      title,
-      dateText: dateMatch?.[0] ?? "",
-      href: normalize(titleLink.attr("href")),
-      onclick: normalize(
-        titleLink.attr("onclick") ||
-          row.attr("onclick")
-      ),
-    });
+const cells = row.find("td");
+
+const status = cells
+  .toArray()
+  .map((cell) => normalize($(cell).text()))
+  .find((text) =>
+    /^(평가진행중|평가중|평가완료|평가종료|심의중|접수완료)$/.test(
+      text
+    )
+  ) ?? "";
+
+addNotice({
+  title,
+  dateText: dateMatch?.[0] ?? "",
+  href: normalize(titleLink.attr("href")),
+  onclick: normalize(
+    titleLink.attr("onclick") ||
+      row.attr("onclick")
+  ),
+  status,
+});
   });
 
   if (results.length === 0) {
@@ -482,16 +499,20 @@ function parseListPage(
       );
 
       addNotice({
-        title,
-        dateText: dateMatch?.[0] ?? "",
-        href: normalize(
-          titleLink.attr("href")
-        ),
-        onclick: normalize(
-          titleLink.attr("onclick") ||
-            item.attr("onclick")
-        ),
-      });
+  title,
+  dateText: dateMatch?.[0] ?? "",
+  href: normalize(
+    titleLink.attr("href")
+  ),
+  onclick: normalize(
+    titleLink.attr("onclick") ||
+      item.attr("onclick")
+  ),
+  status:
+    itemText.match(
+      /(평가진행중|평가중|평가완료|평가종료|심의중|접수완료)/
+    )?.[1] ?? "",
+});
     });
   }
 
@@ -525,14 +546,18 @@ function parseListPage(
         }
 
         addNotice({
-          title,
-          dateText: dateMatch[0],
-          href: normalize(link.attr("href")),
-          onclick: normalize(
-            link.attr("onclick") ||
-              container.attr("onclick")
-          ),
-        });
+  title,
+  dateText: dateMatch[0],
+  href: normalize(link.attr("href")),
+  onclick: normalize(
+    link.attr("onclick") ||
+      container.attr("onclick")
+  ),
+  status:
+    containerText.match(
+      /(평가진행중|평가중|평가완료|평가종료|심의중|접수완료)/
+    )?.[1] ?? "",
+});
       }
     );
   }
@@ -588,12 +613,68 @@ function extractDetailDate(
 
   return normalizeDate(bodyText);
 }
+function extractStatus(
+  $: cheerio.CheerioAPI
+): string | null {
 
+  // 1. "진행현황"이 있는 행만 찾는다.
+  const statusRow = $("tr").filter((_, tr) => {
+    const text = normalize($(tr).text());
+    return text.includes("진행현황");
+  });
+
+  if (statusRow.length) {
+    const cells = statusRow.first().find("th, td");
+
+    for (let i = 0; i < cells.length - 1; i++) {
+      const label = normalize($(cells[i]).text());
+
+      if (label.includes("진행현황")) {
+        const value = normalize($(cells[i + 1]).text());
+
+        if (
+          value &&
+          value !== "신의료기술 현황" &&
+          value !== "ㆍ신의료기술 현황"
+        ) {
+          return value;
+        }
+      }
+    }
+  }
+
+  // 2. dt / dd 구조
+  const dt = $("dt").filter((_, el) =>
+    normalize($(el).text()).includes("진행현황")
+  );
+
+  if (dt.length) {
+    const value = normalize(dt.first().next("dd").text());
+
+    if (
+      value &&
+      value !== "신의료기술 현황" &&
+      value !== "ㆍ신의료기술 현황"
+    ) {
+      return value;
+    }
+  }
+
+  // 3. 마지막 보조방법
+  const bodyText = normalize($("body").text());
+
+  const match = bodyText.match(
+    /(평가중|평가완료|평가종료|평가유예 신의료기술 대상)/
+  );
+
+  return match?.[1] ?? null;
+}
 async function fetchDetailPage(
   notice: BasicNotice
 ): Promise<{
   detailText: string;
   publishedAt: string | null;
+  status: string | null;
 }> {
   if (
     notice.sourceUrl.includes(
@@ -604,9 +685,10 @@ async function fetchDetailPage(
     )
   ) {
     return {
-      detailText: "",
-      publishedAt: notice.publishedAt,
-    };
+  detailText: "",
+  publishedAt: notice.publishedAt,
+  status: notice.status,
+};
   }
 
   try {
@@ -614,10 +696,119 @@ async function fetchDetailPage(
       notice.sourceUrl
     );
 
-    const $ = cheerio.load(html);
+   const $ = cheerio.load(html);
 
-    const detailDate =
-      notice.publishedAt ?? extractDetailDate($);
+/*
+ * NECA 메뉴별 진행상태 구조 확인용 임시 로그
+ *
+ * 표의 행(tr), 정의 목록(dt/dd), 일반 목록(li) 중에서
+ * 상태와 관련돼 보이는 부분을 터미널에 출력한다.
+ */
+if (notice.subcategory !== "신의료기술평가 보고서") {
+  const debugCandidates: string[] = [];
+
+  const debugKeywords = [
+    "진행",
+    "현황",
+    "상태",
+    "평가",
+    "심의",
+    "결과",
+    "접수",
+    "신청",
+    "완료",
+    "종료",
+    "유예",
+    "혁신",
+    "통합",
+  ];
+
+  const addDebugCandidate = (text: string) => {
+    const normalizedText = normalize(text);
+
+    if (!normalizedText) {
+      return;
+    }
+
+    const hasKeyword = debugKeywords.some((keyword) =>
+      normalizedText.includes(keyword)
+    );
+
+    if (!hasKeyword) {
+      return;
+    }
+
+    if (debugCandidates.includes(normalizedText)) {
+      return;
+    }
+
+    debugCandidates.push(normalizedText);
+  };
+
+  // 표 구조 확인
+  $("tr").each((_, rowElement) => {
+    addDebugCandidate($(rowElement).text());
+  });
+
+  // dt / dd 구조 확인
+  $("dt").each((_, dtElement) => {
+    const label = normalize($(dtElement).text());
+    const value = normalize(
+      $(dtElement).next("dd").text()
+    );
+
+    addDebugCandidate(`${label} → ${value}`);
+  });
+
+  // 일반 목록 구조 확인
+
+// 일반 목록 구조 확인
+$("li").each((_, listElement) => {
+  addDebugCandidate($(listElement).text());
+});
+
+// div / span / p 구조 확인
+$("div, span, p").each((_, element) => {
+  addDebugCandidate($(element).text());
+});
+
+console.log("");
+console.log("================================");
+console.log("[NECA 상태 구조 확인]");
+console.log(`분류: ${notice.subcategory}`);
+console.log(`제목: ${notice.title}`);
+console.log(`주소: ${notice.sourceUrl}`);
+console.log("상태 후보:");
+
+if (debugCandidates.length === 0) {
+  console.log("상태 관련 후보를 찾지 못함");
+} else {
+  debugCandidates
+    .slice(0, 30)
+    .forEach((candidate, index) => {
+      console.log(
+        `${index + 1}. ${candidate.slice(0, 500)}`
+      );
+    });
+}
+
+console.log("");
+console.log("===== BODY 앞 4000자 =====");
+console.log(
+  normalize($("body").text()).slice(0, 4000)
+);
+console.log("===== BODY 끝 =====");
+
+console.log("================================");
+console.log("");
+  }
+
+
+const status =
+  notice.status ?? extractStatus($);
+
+const detailDate =
+  notice.publishedAt ?? extractDetailDate($);
 
     $(
       [
@@ -675,9 +866,10 @@ async function fetchDetailPage(
     }
 
     return {
-      detailText: detailText.slice(0, 12000),
-      publishedAt: detailDate,
-    };
+  detailText: detailText.slice(0, 12000),
+  publishedAt: detailDate,
+  status,
+};
   } catch (error) {
     console.error(
       `[NECA] 상세 페이지 조회 실패: ${notice.sourceUrl}`,
@@ -685,9 +877,10 @@ async function fetchDetailPage(
     );
 
     return {
-      detailText: "",
-      publishedAt: notice.publishedAt,
-    };
+  detailText: "",
+  publishedAt: notice.publishedAt,
+  status: notice.status,
+};
   }
 }
 
@@ -782,22 +975,26 @@ export async function GET() {
               await fetchDetailPage(notice);
 
             return {
-              ...notice,
-              publishedAt:
-                detail.publishedAt,
-              category:
-                "신의료기술평가",
-              department:
-                "신의료기술평가사업본부",
-              detailText:
-                detail.detailText,
-              affectedArea:
-                classifyAffectedArea(
-                  notice.subcategory,
-                  notice.title,
-                  detail.detailText
-                ),
-            };
+  ...notice,
+  publishedAt:
+    detail.publishedAt,
+  category:
+    "신의료기술평가",
+  department:
+    "신의료기술평가사업본부",
+  detailText:
+    detail.detailText,
+
+  status:
+    detail.status,
+
+  affectedArea:
+    classifyAffectedArea(
+      notice.subcategory,
+      notice.title,
+      detail.detailText
+    ),
+};
           }
         )
       );
@@ -848,6 +1045,7 @@ export async function GET() {
         subcategory: notice.subcategory,
         title: notice.title,
         department: notice.department,
+        status: notice.status,
         published_at:
           notice.publishedAt,
         source_url: notice.sourceUrl,
@@ -877,6 +1075,7 @@ export async function GET() {
           "source_url",
           "category",
           "subcategory",
+          "status",
           "published_at",
           "affected_area",
         ].join(", ")

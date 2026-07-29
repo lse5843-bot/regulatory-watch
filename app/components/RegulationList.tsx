@@ -15,6 +15,7 @@ export type Regulation = {
   department?: string | null;
   subcategory?: string | null;
   published_at?: string | null;
+  status?: string | null;
   source_url: string;
 
   ai_summary?: string | null;
@@ -42,7 +43,14 @@ const AREA_FILTERS = [
   "임상시험",
   "보험급여",
 ] as const;
-
+const STATUS_FILTERS = [
+  "전체",
+  "평가진행중",
+  "평가중",
+  "평가종료",
+  "평가완료",
+  "평가유예 신의료기술 대상",
+] as const;
 function formatDate(value?: string | null) {
   if (!value) {
     return "날짜 미확인";
@@ -87,6 +95,22 @@ function getAreaStyle(area: AffectedArea) {
 
     case "보험급여":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+}function getStatusStyle(status?: string | null) {
+  switch (status) {
+    case "평가진행중":
+    case "평가중":
+      return "border-blue-200 bg-blue-50 text-blue-700";
+
+    case "평가종료":
+    case "평가완료":
+      return "border-slate-200 bg-slate-100 text-slate-700";
+
+    case "평가유예 신의료기술 대상":
+      return "border-purple-200 bg-purple-50 text-purple-700";
+
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-600";
   }
 }
 
@@ -150,7 +174,8 @@ export default function RegulationList({
 
   const [areaFilter, setAreaFilter] =
     useState<(typeof AREA_FILTERS)[number]>("전체");
-
+const [statusFilter, setStatusFilter] =
+  useState<(typeof STATUS_FILTERS)[number]>("전체");
   const [agencyFilter, setAgencyFilter] = useState("전체");
 const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegulation, setSelectedRegulation] =
@@ -183,18 +208,23 @@ const [nhtaOpen, setNhtaOpen] = useState(true);
       const matchesArea =
         areaFilter === "전체" ||
         regulation.affected_area?.includes(areaFilter);
-
+const matchesStatus =
+  statusFilter === "전체" ||
+  regulation.status === statusFilter;
       const matchesAgency =
         agencyFilter === "전체" ||
         regulation.agency === agencyFilter;
 const matchesSearch =
   searchQuery.trim() === "" ||
   [
-    regulation.title,
-    regulation.ai_summary,
-    regulation.agency,
-    regulation.department,
-    regulation.subcategory,
+     [
+  regulation.title,
+  regulation.ai_summary,
+  regulation.agency,
+  regulation.department,
+  regulation.subcategory,
+  regulation.status,
+]
   ]
     .filter(Boolean)
     .join(" ")
@@ -203,16 +233,20 @@ const matchesSearch =
     return (
   matchesCategory &&
   matchesArea &&
+  matchesStatus &&
   matchesAgency &&
   matchesSearch
-);  
+);
     });
   }, [
+  [
   regulations,
   categoryFilter,
   areaFilter,
+  statusFilter,
   agencyFilter,
   searchQuery,
+]
 ]);
 const deviceRegulations = useMemo(
   () =>
@@ -258,10 +292,11 @@ const nhtaRegulations = useMemo(
   }, [selectedRegulation]);
 
   const resetFilters = () => {
-    setCategoryFilter("전체");
-    setAreaFilter("전체");
-    setAgencyFilter("전체");
-  };
+  setCategoryFilter("전체");
+  setAreaFilter("전체");
+  setStatusFilter("전체");
+  setAgencyFilter("전체");
+};
 
   return (
     <>
@@ -286,20 +321,31 @@ const nhtaRegulations = useMemo(
             />
 
             <FilterGroup
-              title="영향 업무"
-              options={AREA_FILTERS}
-              selected={areaFilter}
-              onSelect={setAreaFilter}
-            />
+  title="영향 업무"
+  options={AREA_FILTERS}
+  selected={areaFilter}
+  onSelect={setAreaFilter}
+/>
 
-            {agencies.length > 1 && (
-              <FilterGroup
-                title="기관"
-                options={agencies}
-                selected={agencyFilter}
-                onSelect={setAgencyFilter}
-              />
-            )}
+{filteredRegulations.some(
+  (regulation) => regulation.category === "신의료기술평가"
+) && (
+  <FilterGroup
+    title="평가 상태"
+    options={STATUS_FILTERS}
+    selected={statusFilter}
+    onSelect={setStatusFilter}
+  />
+)}
+
+{agencies.length > 1 && (
+  <FilterGroup
+    title="기관"
+    options={agencies}
+    selected={agencyFilter}
+    onSelect={setAgencyFilter}
+  />
+)}
           </div>
 
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
@@ -573,7 +619,16 @@ function RegulationCard({
     {regulation.subcategory}
   </span>
 )}
-
+{regulation.status && (
+  <span
+    className={[
+      "rounded-full border px-2.5 py-1 text-xs font-semibold",
+      getStatusStyle(regulation.status),
+    ].join(" ")}
+  >
+    {regulation.status}
+  </span>
+)}
         {regulation.ai_importance && (
           <span
             className={[
@@ -681,7 +736,16 @@ function RegulationPreview({
     {regulation.subcategory}
   </span>
 )}
-
+{regulation.status && (
+  <span
+    className={[
+      "rounded-full border px-2.5 py-1 text-xs font-semibold",
+      getStatusStyle(regulation.status),
+    ].join(" ")}
+  >
+    {regulation.status}
+  </span>
+)}
               {regulation.ai_importance && (
                 <span
                   className={[
