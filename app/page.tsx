@@ -35,12 +35,12 @@ export default async function Home() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10">
           <h1 className="text-5xl font-bold text-slate-900">
-            Regulatory Watch
+            Regulatory Watch by seung-eun
           </h1>
 
           <p className="mt-3 text-slate-600">
-            식품의약품안전처 의료기기·의약품 규제를 AI가 자동 수집하고
-            요약합니다.
+            의료기기·의약품 규제를 AI가 자동 수집하고
+            요약합니다^0^
           </p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
