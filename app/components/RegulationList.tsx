@@ -13,6 +13,7 @@ export type Regulation = {
   category: Category;
   title: string;
   department?: string | null;
+  subcategory?: string | null;
   published_at?: string | null;
   source_url: string;
 
@@ -183,7 +184,21 @@ export default function RegulationList({
       return matchesCategory && matchesArea && matchesAgency;
     });
   }, [regulations, categoryFilter, areaFilter, agencyFilter]);
+const deviceRegulations = useMemo(
+  () =>
+    filteredRegulations.filter(
+      (regulation) => regulation.category === "의료기기"
+    ),
+  [filteredRegulations]
+);
 
+const drugRegulations = useMemo(
+  () =>
+    filteredRegulations.filter(
+      (regulation) => regulation.category === "의약품"
+    ),
+  [filteredRegulations]
+);
   useEffect(() => {
     if (!selectedRegulation) {
       return;
@@ -260,31 +275,63 @@ export default function RegulationList({
         </div>
 
         {/* 목록 */}
-        {filteredRegulations.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
-            <p className="font-medium text-slate-700">
-              조건에 맞는 규제 정보가 없습니다.
-            </p>
+{filteredRegulations.length === 0 ? (
+  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+    <p className="font-medium text-slate-700">
+      조건에 맞는 규제 정보가 없습니다.
+    </p>
 
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="mt-3 text-sm font-semibold text-violet-700"
-            >
-              전체 규제 보기
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {filteredRegulations.map((regulation) => (
-              <RegulationCard
-                key={regulation.id}
-                regulation={regulation}
-                onOpen={() => setSelectedRegulation(regulation)}
-              />
-            ))}
-          </div>
-        )}
+    <button
+      type="button"
+      onClick={resetFilters}
+      className="mt-3 text-sm font-semibold text-violet-700"
+    >
+      전체 규제 보기
+    </button>
+  </div>
+) : (
+  <div className="grid grid-cols-2 gap-8">
+    {/* 의료기기 */}
+    <section>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-bold">🩺 의료기기</h2>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium">
+          {deviceRegulations.length}건
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        {deviceRegulations.map((regulation) => (
+          <RegulationCard
+            key={regulation.id}
+            regulation={regulation}
+            onOpen={() => setSelectedRegulation(regulation)}
+          />
+        ))}
+      </div>
+    </section>
+
+    {/* 의약품 */}
+    <section>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-bold">💊 의약품</h2>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium">
+          {drugRegulations.length}건
+        </span>
+      </div>
+
+      <div className="space-y-4">
+        {drugRegulations.map((regulation) => (
+          <RegulationCard
+            key={regulation.id}
+            regulation={regulation}
+            onOpen={() => setSelectedRegulation(regulation)}
+          />
+        ))}
+      </div>
+    </section>
+  </div>
+)}
       </section>
 
       {/* 상세 미리보기 */}
@@ -367,9 +414,11 @@ function RegulationCard({
           {regulation.agency || "기관 정보 없음"}
         </span>
 
-        <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-          {regulation.category}
-        </span>
+        {regulation.subcategory && (
+  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+    {regulation.subcategory}
+  </span>
+)}
 
         {regulation.ai_importance && (
           <span
@@ -404,10 +453,16 @@ function RegulationCard({
       )}
 
       {regulation.ai_summary && (
-        <p className="mt-4 line-clamp-3 leading-7 text-slate-600">
-          {regulation.ai_summary}
-        </p>
-      )}
+  <div className="mt-4">
+    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+      AI 요약
+    </p>
+
+    <p className="line-clamp-3 leading-7 text-slate-600">
+      {regulation.ai_summary}
+    </p>
+  </div>
+)}
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
         <time className="text-sm text-slate-500">
@@ -454,9 +509,11 @@ function RegulationPreview({
                 {regulation.agency || "기관 정보 없음"}
               </span>
 
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                {regulation.category}
-              </span>
+              {regulation.subcategory && (
+  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+    {regulation.subcategory}
+  </span>
+)}
 
               {regulation.ai_importance && (
                 <span
