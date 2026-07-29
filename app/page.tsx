@@ -1,3 +1,4 @@
+import RegulationList from "./components/RegulationList";
 import { createClient } from "@/utils/supabase/server";
 
 export default async function Home() {
@@ -6,66 +7,77 @@ export default async function Home() {
   const { data: regulations, error } = await supabase
     .from("regulations")
     .select("*")
+    .in("category", ["의료기기", "의약품"])
     .order("published_at", { ascending: false });
 
   if (error) {
     return (
-      <main className="min-h-screen bg-gray-50 p-8">
-        <h1 className="text-3xl font-bold">Regulatory Watch</h1>
+      <main className="min-h-screen bg-slate-50 px-4 py-10">
+        <div className="mx-auto max-w-6xl">
+          <h1 className="text-3xl font-bold text-slate-900">
+            Regulatory Watch
+          </h1>
 
-        <div className="mt-6 rounded-lg bg-red-100 p-4 text-red-700">
-          Supabase 오류: {error.message}
+          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5 text-red-700">
+            <p className="font-semibold">
+              규제 정보를 불러오지 못했습니다.
+            </p>
+
+            <p className="mt-2">{error.message}</p>
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl">
-        <h1 className="text-4xl font-bold text-gray-900">
-          Regulatory Watch
-        </h1>
+    <main className="min-h-screen bg-slate-50">
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-10">
+          <h1 className="text-5xl font-bold text-slate-900">
+            Regulatory Watch
+          </h1>
 
-        <p className="mt-2 text-gray-600">
-          최신 규제 및 정책 업데이트
-        </p>
+          <p className="mt-3 text-slate-600">
+            식품의약품안전처 의료기기·의약품 규제를 AI가 자동 수집하고
+            요약합니다.
+          </p>
 
-        <div className="mt-8 space-y-4">
-          {regulations?.map((regulation) => (
-            <article
-              key={regulation.id}
-              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="flex flex-wrap gap-2 text-sm text-gray-500">
-                <span>{regulation.country}</span>
-                <span>•</span>
-                <span>{regulation.agency}</span>
-                <span>•</span>
-                <span>{regulation.category}</span>
-              </div>
+          <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-sm text-slate-500">전체 공고</p>
 
-              <h2 className="mt-3 text-xl font-semibold text-gray-900">
-                {regulation.title}
-              </h2>
-
-              <p className="mt-3 text-gray-700">
-                {regulation.summary}
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {regulations?.length ?? 0}
               </p>
-
-              <div className="mt-4 text-sm text-gray-500">
-                발행일: {regulation.published_at ?? "날짜 없음"}
-              </div>
-            </article>
-          ))}
-
-          {regulations?.length === 0 && (
-            <div className="rounded-xl border bg-white p-6 text-gray-600">
-              등록된 규제 데이터가 없습니다.
             </div>
-          )}
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-sm text-slate-500">중요 공고</p>
+
+              <p className="mt-2 text-3xl font-bold text-red-600">
+                {regulations?.filter(
+                  (regulation) => regulation.ai_importance === "높음"
+                ).length ?? 0}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6">
+              <p className="text-sm text-slate-500">AI 요약 완료</p>
+
+              <p className="mt-2 text-3xl font-bold text-blue-600">
+                {regulations?.filter(
+                  (regulation) => Boolean(regulation.ai_summary)
+                ).length ?? 0}
+              </p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-8">
+        <RegulationList regulations={regulations ?? []} />
+      </section>
     </main>
   );
 }
