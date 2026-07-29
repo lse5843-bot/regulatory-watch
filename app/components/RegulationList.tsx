@@ -1,4 +1,13 @@
 "use client";
+<section className="mb-8">
+  <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+    Regulatory Watch by seungeun^^
+  </h1>
+
+  <p className="mt-3 text-slate-600">
+    AI로 만든 한페이지에 몰아보기~
+  </p>
+</section>
 
 import { useEffect, useMemo, useState } from "react";
 
