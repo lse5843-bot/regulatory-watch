@@ -55,6 +55,16 @@ type RegulationRow = {
   summarized_at: string;
 };
 
+type ExistingRegulationRow = Pick<
+  RegulationRow,
+  | "source_url"
+  | "ai_summary"
+  | "ai_impact"
+  | "ai_action"
+  | "ai_importance"
+  | "summarized_at"
+>;
+
 const BASE_URL = "https://www.mohw.go.kr";
 
 const LAW_LIST_URL =
@@ -937,14 +947,15 @@ export async function GET() {
       );
     }
 
+    const typedExistingRows =
+      (existingRows ?? []) as unknown as ExistingRegulationRow[];
+
     const existingUrlSet = new Set(
-      (existingRows ?? []).map(
-        (row) => row.source_url
-      )
+      typedExistingRows.map((row) => row.source_url)
     );
 
     const existingSummaryMap = new Map(
-      (existingRows ?? []).map((row) => [
+      typedExistingRows.map((row) => [
         row.source_url,
         row,
       ])
