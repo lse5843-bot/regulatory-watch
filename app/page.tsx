@@ -36,6 +36,16 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-10 lg:px-8">
+        <section className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">
+            ✨Regulatory Watch by Seungeun🔎✨
+          </h1>
+
+          <p className="mt-3 text-slate-600">
+            🤖AI로 의료기기·의약품·신의료기술평가 규제를 한 페이지에서 빠르게 확인하세요.
+          </p>
+        </section>
+
         <RegulationList regulations={regulations ?? []} />
       </div>
     </main>
