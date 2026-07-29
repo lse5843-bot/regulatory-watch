@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Category = "의료기기" | "의약품";
+type Category = "의료기기" | "의약품" | "신의료기술평가";
 type Importance = "높음" | "중간" | "낮음";
 type AffectedArea = "인허가" | "임상시험" | "보험급여";
 
@@ -29,7 +29,12 @@ type RegulationListProps = {
   regulations: Regulation[];
 };
 
-const CATEGORY_FILTERS = ["전체", "의료기기", "의약품"] as const;
+const CATEGORY_FILTERS = [
+  "전체",
+  "의료기기",
+  "의약품",
+  "신의료기술평가",
+] as const;
 
 const AREA_FILTERS = [
   "전체",
@@ -150,7 +155,9 @@ export default function RegulationList({
 const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegulation, setSelectedRegulation] =
     useState<Regulation | null>(null);
-
+const [deviceOpen, setDeviceOpen] = useState(true);
+const [drugOpen, setDrugOpen] = useState(true);
+const [nhtaOpen, setNhtaOpen] = useState(true);
   const agencies = useMemo(() => {
     return [
       "전체",
@@ -219,6 +226,14 @@ const drugRegulations = useMemo(
   () =>
     filteredRegulations.filter(
       (regulation) => regulation.category === "의약품"
+    ),
+  [filteredRegulations]
+);
+
+const nhtaRegulations = useMemo(
+  () =>
+    filteredRegulations.filter(
+      (regulation) => regulation.category === "신의료기술평가"
     ),
   [filteredRegulations]
 );
@@ -322,48 +337,113 @@ const drugRegulations = useMemo(
     </button>
   </div>
 ) : (
-  <div className="grid grid-cols-2 gap-8">
-    {/* 의료기기 */}
-    <section>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold">🩺 의료기기</h2>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium">
-          {deviceRegulations.length}건
-        </span>
+  <div className="space-y-8">
+    {/* 모바일과 데스크톱 모두 의료기기·의약품 2열 */}
+    <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:gap-8">
+      {/* 의료기기 */}
+      <section className="min-w-0">
+        <button
+  type="button"
+  onClick={() => setDeviceOpen(!deviceOpen)}
+  className="mb-4 w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-violet-300 hover:shadow-md"
+>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-lg font-bold">🩺 의료기기</p>
+      <p className="mt-1 text-sm text-slate-500">
+        {deviceRegulations.length}건
+      </p>
+    </div>
+
+    <span className="text-xl">
+       {deviceOpen ? "▲" : "▼"}
+    </span>
+  </div>
+</button>
+
+        {deviceOpen && (
+  <div className="space-y-3 sm:space-y-4">
+          {deviceRegulations.map((regulation) => (
+            <RegulationCard
+              key={regulation.id}
+              regulation={regulation}
+              searchQuery={searchQuery}
+              onOpen={() => setSelectedRegulation(regulation)}
+              compactOnMobile
+            />
+          ))}
+        </div>
+        )}
+      </section>
+
+      {/* 의약품 */}
+      <section className="min-w-0">
+        <button
+  type="button"
+  onClick={() => setDrugOpen(!drugOpen)}
+  className="mb-4 w-full rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-violet-300 hover:shadow-md"
+>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-lg font-bold">💊 의약품</p>
+      <p className="mt-1 text-sm text-slate-500">
+        {drugRegulations.length}건
+      </p>
+    </div>
+
+    <span className="text-xl">
+      {drugOpen ? "▲" : "▼"}
+    </span>
+  </div>
+</button>
+
+      {drugOpen && (
+  <div className="space-y-3 sm:space-y-4">  
+          {drugRegulations.map((regulation) => (
+            <RegulationCard
+              key={regulation.id}
+              regulation={regulation}
+              searchQuery={searchQuery}
+              onOpen={() => setSelectedRegulation(regulation)}
+              compactOnMobile
+            />
+          ))}
+        </div>
+        )}
+      </section>
+    </div>
+
+    <>
+  <button
+    type="button"
+    onClick={() => setNhtaOpen(!nhtaOpen)}
+    className="mb-4 w-full rounded-2xl border border-violet-200 bg-violet-50 p-4 text-left shadow-sm transition hover:shadow-md"
+  >
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-lg font-bold">
+          🧬 신의료기술평가
+        </p>
+
+        <p className="mt-1 text-sm text-slate-500">
+          {nhtaRegulations.length}건
+        </p>
       </div>
 
-      <div className="space-y-4">
-        {deviceRegulations.map((regulation) => (
-          <RegulationCard
-  key={regulation.id}
-  regulation={regulation}
-  searchQuery={searchQuery}
-  onOpen={() => setSelectedRegulation(regulation)}
-/>
-        ))}
-      </div>
-    </section>
+      <span className="text-xl">
+        {nhtaOpen ? "▲" : "▼"}
+      </span>
+    </div>
+  </button>
 
-    {/* 의약품 */}
-    <section>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-bold">💊 의약품</h2>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium">
-          {drugRegulations.length}건
-        </span>
-      </div>
-
-      <div className="space-y-4">
-        {drugRegulations.map((regulation) => (
-          <RegulationCard
-  key={regulation.id}
-  regulation={regulation}
-  searchQuery={searchQuery}
-  onOpen={() => setSelectedRegulation(regulation)}
-/>
-        ))}
-      </div>
-    </section>
+  {nhtaOpen && (
+    <NhtaAccordionSection
+      regulations={nhtaRegulations}
+      searchQuery={searchQuery}
+      onOpen={setSelectedRegulation}
+    />
+  )}
+</>
   </div>
 )}
       </section>
@@ -460,10 +540,12 @@ function RegulationCard({
   regulation,
   searchQuery,
   onOpen,
+  compactOnMobile = false,
 }: {
   regulation: Regulation;
   searchQuery: string;
   onOpen: () => void;
+  compactOnMobile?: boolean;
 }) {
   return (
     <article
@@ -476,7 +558,10 @@ function RegulationCard({
           onOpen();
         }
       }}
-      className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 sm:p-6"
+      className={[
+        "group cursor-pointer rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2",
+        compactOnMobile ? "p-3 sm:p-6" : "p-5 sm:p-6",
+      ].join(" ")}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
@@ -501,7 +586,14 @@ function RegulationCard({
         )}
       </div>
 
-      <h2 className="mt-4 text-lg font-bold leading-7 text-slate-900 transition group-hover:text-violet-700 sm:text-xl">
+      <h2
+        className={[
+          "mt-4 font-bold text-slate-900 transition group-hover:text-violet-700",
+          compactOnMobile
+            ? "text-sm leading-5 sm:text-xl sm:leading-7"
+            : "text-lg leading-7 sm:text-xl",
+        ].join(" ")}
+      >
         <HighlightText
   text={regulation.title}
   query={searchQuery}
@@ -716,7 +808,97 @@ function RegulationPreview({
     </div>
   );
 }
+type NhtaAccordionSectionProps = {
+  regulations: Regulation[];
+  searchQuery: string;
+  onOpen: (regulation: Regulation) => void;
+};
 
+function NhtaAccordionSection({
+  regulations,
+  searchQuery,
+  onOpen,
+}: NhtaAccordionSectionProps) {
+  const [openSubcategory, setOpenSubcategory] = useState<string | null>(null);
+
+  const grouped = useMemo(() => {
+    return regulations.reduce<Record<string, Regulation[]>>((acc, regulation) => {
+      const key = regulation.subcategory?.trim() || "기타";
+
+      if (!acc[key]) acc[key] = [];
+
+      acc[key].push(regulation);
+
+      return acc;
+    }, {});
+  }, [regulations]);
+
+  return (
+    <section>
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-base font-bold sm:text-xl">
+          🧬 신의료기술평가
+        </h2>
+
+        <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-medium text-violet-700">
+          {regulations.length}건
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {Object.entries(grouped).map(([subcategory, items]) => {
+          const open = openSubcategory === subcategory;
+
+          return (
+            <div
+              key={subcategory}
+              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+            >
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenSubcategory(open ? null : subcategory)
+                }
+                className="flex w-full items-center justify-between p-5 transition hover:bg-slate-50"
+              >
+                <span className="font-semibold text-slate-900">
+                  {subcategory}
+                </span>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-500">
+                    {items.length}건
+                  </span>
+
+                  <span
+                    className={`transition-transform ${
+                      open ? "rotate-180" : ""
+                    }`}
+                  >
+                    ▼
+                  </span>
+                </div>
+              </button>
+
+              {open && (
+                <div className="grid gap-3 border-t border-slate-100 bg-slate-50 p-4 sm:grid-cols-2">
+                  {items.map((regulation) => (
+                    <RegulationCard
+                      key={regulation.id}
+                      regulation={regulation}
+                      searchQuery={searchQuery}
+                      onOpen={() => onOpen(regulation)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 function PreviewSection({
   title,
   children,
