@@ -103,7 +103,9 @@ function getAreaStyle(area: AffectedArea) {
     case "보험급여":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
-}function getStatusStyle(status?: string | null) {
+}
+
+function getStatusStyle(status?: string | null) {
   switch (status) {
     case "평가진행중":
     case "평가중":
@@ -172,7 +174,52 @@ function getImpactReasons(regulation: Regulation): string[] {
 
   return [...new Set(reasons)].slice(0, 3);
 }
+function isNewRegulation(
+  publishedAt: string | null | undefined
+) {
+  if (!publishedAt) {
+    return false;
+  }
 
+  const publishedDate = new Date(
+    `${publishedAt.slice(0, 10)}T00:00:00`
+  );
+
+  if (Number.isNaN(publishedDate.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
+
+  return (
+    publishedDate >= sevenDaysAgo &&
+    publishedDate <= today
+  );
+}
+function isTodayRegulation(
+  publishedAt: string | null | undefined
+) {
+  if (!publishedAt) {
+    return false;
+  }
+
+  const publishedDate = new Date(
+    `${publishedAt.slice(0, 10)}T00:00:00`
+  );
+
+  if (Number.isNaN(publishedDate.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return publishedDate.getTime() === today.getTime();
+}
 export default function RegulationList({
   regulations,
 }: RegulationListProps) {
@@ -194,7 +241,9 @@ const [searchQuery, setSearchQuery] = useState("");
 const [deviceOpen, setDeviceOpen] = useState(true);
 const [drugOpen, setDrugOpen] = useState(true);
 const [nhtaOpen, setNhtaOpen] = useState(true);
-  const agencies = useMemo(() => {
+const [todayOpen, setTodayOpen] =
+  useState(true);  
+const agencies = useMemo(() => {
     return [
       "전체",
       ...Array.from(
@@ -219,89 +268,117 @@ const [nhtaOpen, setNhtaOpen] = useState(true);
       const matchesArea =
         areaFilter === "전체" ||
         regulation.affected_area?.includes(areaFilter);
-const matchesDate = matchesDateFilter(
-  regulation.published_at,
-  dateFilter
-);
-const matchesCustomDate =
-  matchesCustomDateRange(
-    regulation.published_at,
-    startDate,
-    endDate
-  );
-        const matchesStatus =
-  statusFilter === "전체" ||
-  regulation.status === statusFilter;
-      
-  const matchesAgency =
+
+      const matchesStatus =
+        statusFilter === "전체" ||
+        regulation.status === statusFilter;
+
+      const matchesDate = matchesDateFilter(
+        regulation.published_at,
+        dateFilter
+      );
+
+      const matchesCustomDate = matchesCustomDateRange(
+        regulation.published_at,
+        startDate,
+        endDate
+      );
+
+      const matchesAgency =
         agencyFilter === "전체" ||
         regulation.agency === agencyFilter;
-const matchesSearch =
-  searchQuery.trim() === "" ||
-  [
-     [
-  regulation.title,
-  regulation.ai_summary,
-  regulation.agency,
-  regulation.department,
-  regulation.subcategory,
-  regulation.status,
-]
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase()
-    .includes(searchQuery.toLowerCase());
-    return (
-  matchesCategory &&
-  matchesArea &&
-  matchesStatus &&
-  matchesDate &&
-  matchesCustomDate &&
-  matchesAgency &&
-  matchesSearch
-);
+
+      const matchesSearch =
+        searchQuery.trim() === "" ||
+        [
+          regulation.title,
+          regulation.ai_summary,
+          regulation.agency,
+          regulation.department,
+          regulation.subcategory,
+          regulation.status,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+
+      return (
+        matchesCategory &&
+        matchesArea &&
+        matchesStatus &&
+        matchesDate &&
+        matchesCustomDate &&
+        matchesAgency &&
+        matchesSearch
+      );
     });
   }, [
-  [
-   regulations,
-  categoryFilter,
-  areaFilter,
-  statusFilter,
-  dateFilter,
-  startDate,
-  endDate,
-  agencyFilter,
-  searchQuery,
-]
-]);
-const deviceRegulations = useMemo(
-  () =>
-    filteredRegulations.filter(
-      (regulation) => regulation.category === "의료기기"
-    ),
-  [filteredRegulations]
-);
+    regulations,
+    categoryFilter,
+    areaFilter,
+    statusFilter,
+    dateFilter,
+    startDate,
+    endDate,
+    agencyFilter,
+    searchQuery,
+  ]);
 
-const drugRegulations = useMemo(
-  () =>
-    filteredRegulations.filter(
-      (regulation) => regulation.category === "의약품"
-    ),
-  [filteredRegulations]
-);
+  const deviceRegulations = useMemo(
+    () =>
+      filteredRegulations.filter(
+        (regulation) => regulation.category === "의료기기"
+      ),
+    [filteredRegulations]
+  );
 
-const nhtaRegulations = useMemo(
-  () =>
-    filteredRegulations.filter(
-      (regulation) => regulation.category === "신의료기술평가"
-    ),
-  [filteredRegulations]
-);
+  const drugRegulations = useMemo(
+    () =>
+      filteredRegulations.filter(
+        (regulation) => regulation.category === "의약품"
+      ),
+    [filteredRegulations]
+  );
+
+  const nhtaRegulations = useMemo(
+    () =>
+      filteredRegulations.filter(
+        (regulation) => regulation.category === "신의료기술평가"
+      ),
+    [filteredRegulations]
+  );
+
+  const todayRegulations = useMemo(
+    () =>
+      filteredRegulations.filter((regulation) =>
+        isTodayRegulation(regulation.published_at)
+      ),
+    [filteredRegulations]
+  );
+
+  const recentSevenDayRegulations = useMemo(
+    () =>
+      filteredRegulations.filter((regulation) =>
+        isNewRegulation(regulation.published_at)
+      ),
+    [filteredRegulations]
+  );
+
+  const todayGroupCounts = useMemo(() => {
+    return todayRegulations.reduce(
+      (counts, regulation) => {
+        if (regulation.category === "의료기기") counts.device += 1;
+        if (regulation.category === "의약품") counts.drug += 1;
+        if (regulation.category === "신의료기술평가") counts.nhta += 1;
+        return counts;
+      },
+      { device: 0, drug: 0, nhta: 0 }
+    );
+  }, [todayRegulations]);
+
   useEffect(() => {
-    if (!selectedRegulation) {
-      return;
-    }
+    if (!selectedRegulation) return;
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -319,14 +396,14 @@ const nhtaRegulations = useMemo(
   }, [selectedRegulation]);
 
   const resetFilters = () => {
-  setCategoryFilter("전체");
-  setAreaFilter("전체");
-  setStatusFilter("전체");
-  setDateFilter("전체");
-  setStartDate("");
-  setEndDate("");
-  setAgencyFilter("전체");
-};
+    setCategoryFilter("전체");
+    setAreaFilter("전체");
+    setStatusFilter("전체");
+    setDateFilter("전체");
+    setStartDate("");
+    setEndDate("");
+    setAgencyFilter("전체");
+  };
 
   return (
     <>
@@ -447,7 +524,101 @@ const nhtaRegulations = useMemo(
             </button>
           </div>
         </div>
+{/* 신규 현황 */}
+<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 shadow-sm">
+    <p className="text-xs font-bold text-red-600">
+      🔥 오늘 신규
+    </p>
 
+    <p className="mt-2 text-2xl font-black text-red-700">
+      {todayRegulations.length}
+      <span className="ml-1 text-sm font-semibold">
+        건
+      </span>
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 shadow-sm">
+    <p className="text-xs font-bold text-orange-700">
+      📅 최근 7일
+    </p>
+
+    <p className="mt-2 text-2xl font-black text-orange-700">
+      {recentSevenDayRegulations.length}
+      <span className="ml-1 text-sm font-semibold">
+        건
+      </span>
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
+    <p className="text-xs font-bold text-blue-700">
+      🩺 오늘 의료기기
+    </p>
+
+    <p className="mt-2 text-2xl font-black text-blue-700">
+      {todayGroupCounts.device}
+      <span className="ml-1 text-sm font-semibold">
+        건
+      </span>
+    </p>
+  </div>
+
+  <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm">
+    <p className="text-xs font-bold text-violet-700">
+      💊·🧬 기타 오늘 신규
+    </p>
+
+    <p className="mt-2 text-2xl font-black text-violet-700">
+      {todayGroupCounts.drug +
+        todayGroupCounts.nhta}
+      <span className="ml-1 text-sm font-semibold">
+        건
+      </span>
+    </p>
+  </div>
+</div>
+{/* 오늘 신규 목록 */}
+{todayRegulations.length > 0 && (
+  <section className="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+    <button
+      type="button"
+      onClick={() => setTodayOpen(!todayOpen)}
+      className="flex w-full items-center justify-between bg-red-50 p-4 text-left transition hover:bg-red-100 sm:p-5"
+    >
+      <div>
+        <h2 className="text-lg font-black text-slate-900">
+          🔥 오늘 새로 올라온 규제
+        </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          오늘 게시된 자료{" "}
+          {todayRegulations.length}건
+        </p>
+      </div>
+
+      <span className="text-xl text-red-600">
+        {todayOpen ? "▲" : "▼"}
+      </span>
+    </button>
+
+    {todayOpen && (
+      <div className="grid gap-3 border-t border-red-100 bg-red-50/30 p-3 sm:grid-cols-2 sm:p-4">
+        {todayRegulations.map((regulation) => (
+          <RegulationCard
+            key={`today-${regulation.id}`}
+            regulation={regulation}
+            searchQuery={searchQuery}
+            onOpen={() =>
+              setSelectedRegulation(regulation)
+            }
+          />
+        ))}
+      </div>
+    )}
+  </section>
+)}
         {/* 목록 */}
 {filteredRegulations.length === 0 ? (
   <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
@@ -713,19 +884,27 @@ function RegulationCard({
         )}
       </div>
 
-      <h2
-        className={[
-          "mt-4 font-bold text-slate-900 transition group-hover:text-violet-700",
-          compactOnMobile
-            ? "text-sm leading-5 sm:text-xl sm:leading-7"
-            : "text-lg leading-7 sm:text-xl",
-        ].join(" ")}
-      >
-        <HighlightText
-  text={regulation.title}
-  query={searchQuery}
-/>
-      </h2>
+      <div className="mt-4 flex items-start justify-between gap-3">
+  <h2
+    className={[
+      "min-w-0 font-bold text-slate-900 transition group-hover:text-violet-700",
+      compactOnMobile
+        ? "text-sm leading-5 sm:text-xl sm:leading-7"
+        : "text-lg leading-7 sm:text-xl",
+    ].join(" ")}
+  >
+    <HighlightText
+      text={regulation.title}
+      query={searchQuery}
+    />
+  </h2>
+
+  {isNewRegulation(regulation.published_at) && (
+    <span className="shrink-0 rounded-full border border-red-300 bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-600">
+      NEW
+    </span>
+  )}
+</div>
 
       {(regulation.affected_area?.length ?? 0) > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
