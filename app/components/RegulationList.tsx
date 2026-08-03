@@ -408,18 +408,13 @@ const nhtaRegulations = useMemo(
 </button>
 
         {deviceOpen && (
-  <div className="space-y-3 sm:space-y-4">
-          {deviceRegulations.map((regulation) => (
-            <RegulationCard
-              key={regulation.id}
-              regulation={regulation}
-              searchQuery={searchQuery}
-              onOpen={() => setSelectedRegulation(regulation)}
-              compactOnMobile
-            />
-          ))}
-        </div>
-        )}
+  <RegulationSubcategorySection
+    regulations={deviceRegulations}
+    searchQuery={searchQuery}
+    onOpen={setSelectedRegulation}
+    compactOnMobile
+  />
+)}
       </section>
 
       {/* 의약품 */}
@@ -444,20 +439,16 @@ const nhtaRegulations = useMemo(
 </button>
 
       {drugOpen && (
-  <div className="space-y-3 sm:space-y-4">  
-          {drugRegulations.map((regulation) => (
-            <RegulationCard
-              key={regulation.id}
-              regulation={regulation}
-              searchQuery={searchQuery}
-              onOpen={() => setSelectedRegulation(regulation)}
-              compactOnMobile
-            />
-          ))}
-        </div>
-        )}
+  <RegulationSubcategorySection
+    regulations={drugRegulations}
+    searchQuery={searchQuery}
+    onOpen={setSelectedRegulation}
+    compactOnMobile
+  />
+)}
+        
       </section>
-    </div>
+      </div>
 
     <>
   <button
@@ -869,6 +860,187 @@ function RegulationPreview({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+type RegulationSubcategorySectionProps = {
+  regulations: Regulation[];
+  searchQuery: string;
+  onOpen: (regulation: Regulation) => void;
+  compactOnMobile?: boolean;
+};
+
+function getRegulationGroup(
+  regulation: Regulation
+): "고시" | "공고" | "정책뉴스" | "기타" {
+  const subcategory =
+    regulation.subcategory?.trim() ?? "";
+
+  if (subcategory.includes("정책뉴스")) {
+    return "정책뉴스";
+  }
+
+  if (
+    subcategory.includes("고시") ||
+    subcategory.includes("행정예고")
+  ) {
+    return "고시";
+  }
+
+  if (
+    subcategory.includes("공고") ||
+    subcategory.includes("공지")
+  ) {
+    return "공고";
+  }
+
+  return "기타";
+}
+
+function getRegulationGroupLabel(
+  group: "고시" | "공고" | "정책뉴스" | "기타"
+) {
+  switch (group) {
+    case "고시":
+      return "📜 고시";
+
+    case "공고":
+      return "📌 공고";
+
+    case "정책뉴스":
+      return "📢 정책뉴스";
+
+    default:
+      return "📂 기타";
+  }
+}
+
+function getRegulationGroupStyle(
+  group: "고시" | "공고" | "정책뉴스" | "기타"
+) {
+  switch (group) {
+    case "고시":
+      return "border-blue-200 bg-blue-50 hover:bg-blue-100";
+
+    case "공고":
+      return "border-emerald-200 bg-emerald-50 hover:bg-emerald-100";
+
+    case "정책뉴스":
+      return "border-orange-200 bg-orange-50 hover:bg-orange-100";
+
+    default:
+      return "border-slate-200 bg-slate-50 hover:bg-slate-100";
+  }
+}
+
+function RegulationSubcategorySection({
+  regulations,
+  searchQuery,
+  onOpen,
+  compactOnMobile = false,
+}: RegulationSubcategorySectionProps) {
+  const [openGroups, setOpenGroups] = useState<
+    Record<string, boolean>
+  >({
+    고시: true,
+    공고: true,
+    정책뉴스: true,
+    기타: true,
+  });
+
+  const grouped = useMemo(() => {
+    const result: Record<
+      "고시" | "공고" | "정책뉴스" | "기타",
+      Regulation[]
+    > = {
+      고시: [],
+      공고: [],
+      정책뉴스: [],
+      기타: [],
+    };
+
+    for (const regulation of regulations) {
+      const group = getRegulationGroup(regulation);
+      result[group].push(regulation);
+    }
+
+    return result;
+  }, [regulations]);
+
+  const groupOrder = [
+    "고시",
+    "공고",
+    "정책뉴스",
+    "기타",
+  ] as const;
+
+  const visibleGroups = groupOrder.filter(
+    (group) => grouped[group].length > 0
+  );
+
+  if (visibleGroups.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
+        표시할 항목이 없습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {visibleGroups.map((group) => {
+        const items = grouped[group];
+        const open = openGroups[group] ?? true;
+
+        return (
+          <section
+            key={group}
+            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setOpenGroups((current) => ({
+                  ...current,
+                  [group]: !open,
+                }))
+              }
+              className={[
+                "flex w-full items-center justify-between gap-3 border-b-0 p-4 text-left transition",
+                getRegulationGroupStyle(group),
+              ].join(" ")}
+            >
+              <div>
+                <p className="font-bold text-slate-900">
+                  {getRegulationGroupLabel(group)}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {items.length}건
+                </p>
+              </div>
+
+              <span className="text-lg text-slate-600">
+                {open ? "▲" : "▼"}
+              </span>
+            </button>
+
+            {open && (
+              <div className="space-y-3 border-t border-slate-100 bg-slate-50 p-3 sm:p-4">
+                {items.map((regulation) => (
+                  <RegulationCard
+                    key={regulation.id}
+                    regulation={regulation}
+                    searchQuery={searchQuery}
+                    onOpen={() => onOpen(regulation)}
+                    compactOnMobile={compactOnMobile}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
