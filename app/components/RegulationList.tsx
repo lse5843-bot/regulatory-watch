@@ -185,6 +185,8 @@ const [statusFilter, setStatusFilter] =
   useState<(typeof STATUS_FILTERS)[number]>("전체");
  const [dateFilter, setDateFilter] =
   useState<(typeof DATE_FILTERS)[number]>("전체");
+ const [startDate, setStartDate] = useState("");
+const [endDate, setEndDate] = useState("");
   const [agencyFilter, setAgencyFilter] = useState("전체");
 const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegulation, setSelectedRegulation] =
@@ -221,6 +223,12 @@ const matchesDate = matchesDateFilter(
   regulation.published_at,
   dateFilter
 );
+const matchesCustomDate =
+  matchesCustomDateRange(
+    regulation.published_at,
+    startDate,
+    endDate
+  );
         const matchesStatus =
   statusFilter === "전체" ||
   regulation.status === statusFilter;
@@ -249,17 +257,20 @@ const matchesSearch =
   matchesArea &&
   matchesStatus &&
   matchesDate &&
+  matchesCustomDate &&
   matchesAgency &&
   matchesSearch
 );
     });
   }, [
   [
-  regulations,
+   regulations,
   categoryFilter,
   areaFilter,
   statusFilter,
   dateFilter,
+  startDate,
+  endDate,
   agencyFilter,
   searchQuery,
 ]
@@ -312,6 +323,8 @@ const nhtaRegulations = useMemo(
   setAreaFilter("전체");
   setStatusFilter("전체");
   setDateFilter("전체");
+  setStartDate("");
+  setEndDate("");
   setAgencyFilter("전체");
 };
 
@@ -349,6 +362,52 @@ const nhtaRegulations = useMemo(
   selected={dateFilter}
   onSelect={setDateFilter}
 />
+<div>
+  <p className="mb-2 text-sm font-semibold text-slate-700">
+    날짜 범위
+  </p>
+
+  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <input
+      type="date"
+      value={startDate}
+      max={endDate || undefined}
+      onChange={(event) => {
+        setStartDate(event.target.value);
+        setDateFilter("전체");
+      }}
+      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none sm:w-auto"
+    />
+
+    <span className="hidden text-slate-400 sm:inline">
+      ~
+    </span>
+
+    <input
+      type="date"
+      value={endDate}
+      min={startDate || undefined}
+      onChange={(event) => {
+        setEndDate(event.target.value);
+        setDateFilter("전체");
+      }}
+      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:border-violet-500 focus:outline-none sm:w-auto"
+    />
+
+    {(startDate || endDate) && (
+      <button
+        type="button"
+        onClick={() => {
+          setStartDate("");
+          setEndDate("");
+        }}
+        className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 transition hover:border-slate-400 hover:text-slate-900"
+      >
+        날짜 지우기
+      </button>
+    )}
+  </div>
+</div>
 {filteredRegulations.some(
   (regulation) => regulation.category === "신의료기술평가"
 ) && (
@@ -936,6 +995,49 @@ function matchesDateFilter(
     publishedDate.getTime() >=
     startDate.getTime()
   );
+}
+function matchesCustomDateRange(
+  publishedAt: string | null | undefined,
+  startDate: string,
+  endDate: string
+) {
+  if (!startDate && !endDate) {
+    return true;
+  }
+
+  if (!publishedAt) {
+    return false;
+  }
+
+  const published = new Date(`${publishedAt}T00:00:00`);
+
+  if (Number.isNaN(published.getTime())) {
+    return false;
+  }
+
+  if (startDate) {
+    const start = new Date(`${startDate}T00:00:00`);
+
+    if (
+      !Number.isNaN(start.getTime()) &&
+      published < start
+    ) {
+      return false;
+    }
+  }
+
+  if (endDate) {
+    const end = new Date(`${endDate}T23:59:59`);
+
+    if (
+      !Number.isNaN(end.getTime()) &&
+      published > end
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }
 function getRegulationGroup(
   regulation: Regulation
