@@ -548,15 +548,8 @@ export async function GET() {
 } = await supabase
   .from("regulations")
   .select(
-    [
-      "source_url",
-      "ai_summary",
-      "ai_impact",
-      "ai_action",
-      "ai_importance",
-      "summarized_at",
-    ].join(", ")
-  )
+  "source_url, ai_summary, ai_impact, ai_action, ai_importance, summarized_at"
+)
   .in("source_url", sourceUrls);
 
     if (existingError) {
@@ -668,20 +661,8 @@ for (const item of detailedItems) {
         onConflict: "source_url",
         ignoreDuplicates: false,
       })
-      .select(
-  [
-    "id",
-    "title",
-    "source_url",
-    "category",
-    "subcategory",
-    "published_at",
-    "affected_area",
-    "ai_summary",
-    "ai_impact",
-    "ai_importance",
-    "summarized_at",
-  ].join(", ")
+    .select(
+  "id, title, source_url, category, subcategory, published_at, affected_area, ai_summary, ai_impact, ai_importance, summarized_at"
 );
 
     if (error) {
