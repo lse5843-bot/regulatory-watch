@@ -51,6 +51,13 @@ const STATUS_FILTERS = [
   "평가완료",
   "평가유예 신의료기술 대상",
 ] as const;
+const DATE_FILTERS = [
+  "전체",
+  "최근 7일",
+  "최근 30일",
+  "최근 90일",
+  "올해",
+] as const;
 function formatDate(value?: string | null) {
   if (!value) {
     return "날짜 미확인";
@@ -176,6 +183,8 @@ export default function RegulationList({
     useState<(typeof AREA_FILTERS)[number]>("전체");
 const [statusFilter, setStatusFilter] =
   useState<(typeof STATUS_FILTERS)[number]>("전체");
+ const [dateFilter, setDateFilter] =
+  useState<(typeof DATE_FILTERS)[number]>("전체");
   const [agencyFilter, setAgencyFilter] = useState("전체");
 const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegulation, setSelectedRegulation] =
@@ -208,10 +217,15 @@ const [nhtaOpen, setNhtaOpen] = useState(true);
       const matchesArea =
         areaFilter === "전체" ||
         regulation.affected_area?.includes(areaFilter);
-const matchesStatus =
+const matchesDate = matchesDateFilter(
+  regulation.published_at,
+  dateFilter
+);
+        const matchesStatus =
   statusFilter === "전체" ||
   regulation.status === statusFilter;
-      const matchesAgency =
+      
+  const matchesAgency =
         agencyFilter === "전체" ||
         regulation.agency === agencyFilter;
 const matchesSearch =
@@ -234,6 +248,7 @@ const matchesSearch =
   matchesCategory &&
   matchesArea &&
   matchesStatus &&
+  matchesDate &&
   matchesAgency &&
   matchesSearch
 );
@@ -244,6 +259,7 @@ const matchesSearch =
   categoryFilter,
   areaFilter,
   statusFilter,
+  dateFilter,
   agencyFilter,
   searchQuery,
 ]
@@ -295,6 +311,7 @@ const nhtaRegulations = useMemo(
   setCategoryFilter("전체");
   setAreaFilter("전체");
   setStatusFilter("전체");
+  setDateFilter("전체");
   setAgencyFilter("전체");
 };
 
@@ -326,7 +343,12 @@ const nhtaRegulations = useMemo(
   selected={areaFilter}
   onSelect={setAreaFilter}
 />
-
+<FilterGroup
+  title="게시일"
+  options={DATE_FILTERS}
+  selected={dateFilter}
+  onSelect={setDateFilter}
+/>
 {filteredRegulations.some(
   (regulation) => regulation.category === "신의료기술평가"
 ) && (
@@ -869,27 +891,96 @@ type RegulationSubcategorySectionProps = {
   onOpen: (regulation: Regulation) => void;
   compactOnMobile?: boolean;
 };
+function matchesDateFilter(
+  publishedAt: string | null | undefined,
+  dateFilter: (typeof DATE_FILTERS)[number]
+) {
+  if (dateFilter === "전체") {
+    return true;
+  }
 
+  if (!publishedAt) {
+    return false;
+  }
+
+  const publishedDate = new Date(publishedAt);
+
+  if (Number.isNaN(publishedDate.getTime())) {
+    return false;
+  }
+
+  const now = new Date();
+
+  if (dateFilter === "올해") {
+    return (
+      publishedDate.getFullYear() ===
+      now.getFullYear()
+    );
+  }
+
+  const daysByFilter = {
+    "최근 7일": 7,
+    "최근 30일": 30,
+    "최근 90일": 90,
+  } as const;
+
+  const days = daysByFilter[dateFilter];
+  const startDate = new Date(now);
+
+  startDate.setHours(0, 0, 0, 0);
+  startDate.setDate(
+    startDate.getDate() - (days - 1)
+  );
+
+  return (
+    publishedDate.getTime() >=
+    startDate.getTime()
+  );
+}
 function getRegulationGroup(
   regulation: Regulation
 ): "고시" | "공고" | "정책뉴스" | "기타" {
-  const subcategory =
-    regulation.subcategory?.trim() ?? "";
+  const text = [
+    regulation.subcategory,
+    regulation.title,
+    regulation.department,
+    regulation.source_url,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-  if (subcategory.includes("정책뉴스")) {
+  // 정책뉴스를 가장 먼저 판별
+  if (
+    text.includes("정책뉴스") ||
+    text.includes("정책 뉴스") ||
+    text.includes("보도자료") ||
+    text.includes("mnu20456")
+  ) {
     return "정책뉴스";
   }
 
+  // 고시·규정·행정예고 계열
   if (
-    subcategory.includes("고시") ||
-    subcategory.includes("행정예고")
+    text.includes("고시") ||
+    text.includes("행정예고") ||
+    text.includes("제정안") ||
+    text.includes("개정안") ||
+    text.includes("일부개정") ||
+    text.includes("전부개정") ||
+    text.includes("규정 제정") ||
+    text.includes("규정 개정")
   ) {
     return "고시";
   }
 
+  // 공고·공지 계열
   if (
-    subcategory.includes("공고") ||
-    subcategory.includes("공지")
+    text.includes("공고") ||
+    text.includes("공지사항") ||
+    text.includes("공지 사항") ||
+    text.includes("모집공고") ||
+    text.includes("재공고")
   ) {
     return "공고";
   }
